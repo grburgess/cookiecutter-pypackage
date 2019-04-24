@@ -3,7 +3,81 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
+
+from setuptools.command.build_ext import build_ext as _build_ext
+from Cython.Build import cythonize
+from setuptools import setup, find_packages, Command, Extension
+import os
+import io
+import sys
+from shutil import rmtree
+
+
+
+class UploadCommand(Command):
+    """Support setup.py upload."""
+
+    description = "Build and publish the package."
+    user_options = []
+
+    @staticmethod
+    def status(s):
+        """Prints things in bold."""
+        print("\033[1m{0}\033[0m".format(s))
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        try:
+            self.status("Removing previous builds...")
+            rmtree(os.path.join(here, "dist"))
+        except OSError:
+            pass
+
+        self.status("Building Source and Wheel (universal) distribution...")
+        os.system("{0} setup.py sdist bdist_wheel --universal".format(sys.executable))
+
+        self.status("Uploading the package to PyPI via Twine...")
+        os.system("twine upload dist/*")
+
+        self.status("Pushing git tags...")
+        os.system("git tag v{0}".format(about["__version__"]))
+        os.system("git push --tags")
+
+        sys.exit()
+
+
+
+# Package meta-data.
+NAME = "{{ cookiecutter.project_slug }}"
+DESCRIPTION = "{{ cookiecutter.project_short_description }}"
+URL = 'https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.project_slug }}'
+EMAIL = '{{ cookiecutter.email }}'
+AUTHOR = "{{ cookiecutter.full_name.replace('\"', '\\\"') }}"
+REQUIRES_PYTHON = ">=2.7.0"
+VERSION = None
+
+REQUIRED = [
+    "numpy",
+    "scipy",
+    "ipython",
+    "matplotlib",
+    "h5py",
+    "pandas",
+    "Cython",
+
+]
+
+
+
+
+#extra_files = find_data_files("{{ cookiecutter.project_slug }}/data")
+
+
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -11,7 +85,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [{%- if cookiecutter.command_line_interface|lower == 'click' %}'Click>=6.0',{%- endif %} ]
+requirements = REQUIRED
 
 setup_requirements = [{%- if cookiecutter.use_pytest == 'y' %}'pytest-runner',{%- endif %} ]
 
@@ -26,8 +100,8 @@ test_requirements = [{%- if cookiecutter.use_pytest == 'y' %}'pytest',{%- endif 
 } %}
 
 setup(
-    author="{{ cookiecutter.full_name.replace('\"', '\\\"') }}",
-    author_email='{{ cookiecutter.email }}',
+    author=AUTHOR,
+    author_email=EMAIL,
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -43,7 +117,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-    description="{{ cookiecutter.project_short_description }}",
+    description=DESCRIPTION,
     {%- if 'no' not in cookiecutter.command_line_interface|lower %}
     entry_points={
         'console_scripts': [
@@ -59,11 +133,22 @@ setup(
     include_package_data=True,
     keywords='{{ cookiecutter.project_slug }}',
     name='{{ cookiecutter.project_slug }}',
-    packages=find_packages(include=['{{ cookiecutter.project_slug }}']),
+    packages=find_packages(include=['{{ cookiecutter.project_slug }}'],exclude=('tests')),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.project_slug }}',
     version='{{ cookiecutter.version }}',
     zip_safe=False,
+    cmdclass={"upload": UploadCommand},
+#        package_data={"": extra_files},
 )
+
+
+
+
+
+
+
+
+
